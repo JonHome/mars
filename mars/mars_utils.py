@@ -478,6 +478,43 @@ def merge_win_static_libs(src_libs: List[str], dst_lib: str, lib_exe_path: str) 
 
 import glob
 
+
+def lipo_create_combined(device_lib, simulator_lib, output_lib):
+    """
+    合并设备库和模拟器库，处理相同架构的情况
+    """
+    # 检查模拟器库的架构
+    import tempfile
+    check_arch_cmd = 'lipo -info %s' % simulator_lib
+    simulator_archs = os.popen(check_arch_cmd).read().strip()
+    
+    if 'arm64' not in simulator_archs:
+        # 如果模拟器库不包含 arm64，直接合并
+        ret = os.system('lipo -create %s %s -output %s' % (device_lib, simulator_lib, output_lib))
+        if ret != 0:
+            print('!!!!!!!!!!!create combined lib fail!!!!!!!!!!!!!!!')
+            return False
+    else:
+        # 如果模拟器库包含 arm64，则需要先移除
+        tmp_simulator = tempfile.mktemp()
+        ret = os.system('lipo -remove arm64 %s -output %s' % (simulator_lib, tmp_simulator))
+        if ret != 0:
+            print('!!!!!!!!!!!remove arm64 from simulator fail!!!!!!!!!!!!!!!')
+            if os.path.exists(tmp_simulator):
+                os.remove(tmp_simulator)
+            return False
+            
+        # 合并处理后的模拟器库和设备库
+        ret = os.system('lipo -create %s %s -output %s' % (device_lib, tmp_simulator, output_lib))
+        if os.path.exists(tmp_simulator):
+            os.remove(tmp_simulator)
+        if ret != 0:
+            print('!!!!!!!!!!!create combined lib fail!!!!!!!!!!!!!!!')
+            return False
+    
+    return True
+
+
 if __name__ == '__main__':
     lipo_thin_libs(u'/Users/garry/Documents/gitcode/mmnet/mars/openssl/openssl_lib_iOS/libcrypto.a',
                    u'/Users/garry/Documents/gitcode/mmnet/mars/openssl/openssl_lib_iOS/libcrypto_test.a',

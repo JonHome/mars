@@ -28,6 +28,18 @@ void appender_set_console_fun(TConsoleFun _fun) { sg_console_fun = _fun; }
 void ConsoleLog(const XLoggerInfo* _info, const char* _log) {
     SCOPE_POOL();
 
+    if (NULL == _info && NULL != _log) {
+        if (kConsoleOSLog == sg_console_fun) {
+            os_log_t log_t = os_log_create("", "");
+            os_log_with_type(log_t, OS_LOG_TYPE_DEFAULT, "%s", _log);
+        } else if (kConsoleNSLog == sg_console_fun) {
+            NSLog(@"%s", _log);
+        } else {
+            printf("%s\n", _log);
+        }
+        return;
+    }
+
     if (NULL == _info || NULL == _log) return;
 
     static const char* levelStrings[] = {
